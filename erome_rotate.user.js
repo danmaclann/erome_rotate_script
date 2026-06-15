@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video Rotate 90° with Fit - Erome
 // @namespace    https://github.com/danmaclann
-// @version      1.0
+// @version      1.01
 // @description  Adds a button to rotate video 90° and resize to fit, keeping rotation in fullscreen mode
 // @author       You
 // @match        *://*.erome.com/a/*
@@ -14,17 +14,8 @@
 (function () {
     'use strict';
 
-    const STATE = {
-        rotation: 0
-    };
-
-    function getPlayer() {
-        return document.querySelector('.player.video-js');
-    }
-
-    function getVideo() {
-        return document.querySelector('.player.video-js video.vjs-tech');
-    }
+    // Store rotation state per player using player ID
+    const playerStates = {};
 
     function normalizeRotation(deg) {
         deg %= 360;
@@ -37,13 +28,27 @@
         return r === 90 || r === 270;
     }
 
-    function ensureButtons() {
-        const player = getPlayer();
+    function getPlayers() {
+        return document.querySelectorAll('.player.video-js');
+    }
+
+    function getVideo(player) {
+        return player.querySelector('video.vjs-tech');
+    }
+
+    function ensureButtonsForPlayer(player) {
         if (!player) return;
+
+        const playerId = player.id || 'player-' + Math.random().toString(36).substr(2, 9);
+        
+        if (!playerStates[playerId]) {
+            playerStates[playerId] = { rotation: 0 };
+        }
 
         const controlBar = player.querySelector('.vjs-control-bar');
         if (!controlBar) return;
 
+        // Check if buttons already exist for this player
         if (!player.querySelector('.tm-rotate-left')) {
             const leftBtn = document.createElement('button');
             leftBtn.className = 'tm-rotate-left vjs-control vjs-button';
@@ -54,8 +59,8 @@
             leftBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                STATE.rotation -= 90;
-                applyRotation();
+                playerStates[playerId].rotation -= 90;
+                applyRotation(player, playerId);
             });
 
             const fsBtn = controlBar.querySelector('.vjs-fullscreen-control');
@@ -73,8 +78,8 @@
             rightBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                STATE.rotation += 90;
-                applyRotation();
+                playerStates[playerId].rotation += 90;
+                applyRotation(player, playerId);
             });
 
             const fsBtn = controlBar.querySelector('.vjs-fullscreen-control');
@@ -92,8 +97,8 @@
             resetBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                STATE.rotation = 0;
-                applyRotation();
+                playerStates[playerId].rotation = 0;
+                applyRotation(player, playerId);
             });
 
             const fsBtn = controlBar.querySelector('.vjs-fullscreen-control');
@@ -102,12 +107,11 @@
         }
     }
 
-    function applyRotation() {
-        const player = getPlayer();
-        const video = getVideo();
+    function applyRotation(player, playerId) {
+        const video = getVideo(player);
         if (!player || !video) return;
 
-        const rotation = normalizeRotation(STATE.rotation);
+        const rotation = normalizeRotation(playerStates[playerId].rotation);
         const sideways = isSideways(rotation);
 
         player.classList.toggle('tm-video-rotated', sideways);
@@ -174,14 +178,19 @@
         document.head.appendChild(css);
     }
 
-    function init() {
-        injectCss();
-        ensureButtons();
-        applyRotation();
+    function initAllPlayers() {
+        const players = getPlayers();
+        players.forEach(player => {
+            ensureButtonsForPlayer(player);
+            const playerId = player.id || 'player-' + Math.random().toString(36).substr(2, 9);
+            if (playerStates[playerId]) {
+                applyRotation(player, playerId);
+            }
+        });
     }
 
     const mo = new MutationObserver(() => {
-        init();
+        initAllPlayers();
     });
 
     mo.observe(document.documentElement, {
@@ -189,13 +198,16 @@
         subtree: true
     });
 
-    document.addEventListener('fullscreenchange', () => {
-        setTimeout(init, 100);
+    document.addEventListener('fullscreenchange', (e) => {
+        // Re-apply rotation to the fullscreen player
+        setTimeout(initAllPlayers, 100);
     });
 
-    document.addEventListener('webkitfullscreenchange', () => {
-        setTimeout(init, 100);
+    document.addEventListener('webkitfullscreenchange', (e) => {
+        setTimeout(initAllPlayers, 100);
     });
 
-    init();
+    // Initialize on load
+    injectCss();
+    initAllPlayers();
 })();
