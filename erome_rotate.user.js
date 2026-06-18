@@ -8,7 +8,7 @@
 // @grant        none
 // @downloadURL  https://github.com/danmaclann/erome_rotate_script/raw/refs/heads/main/erome_rotate.user.js
 // @updateURL    https://github.com/danmaclann/erome_rotate_script/raw/refs/heads/main/erome_rotate.user.js
-// @icon         https://www.erome.com/android-chrome-192x192.png
+// @icon         https://www.erome.com/android-chrome-512x512.png
 // ==/UserScript==
 
 (function () {
